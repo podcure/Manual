@@ -1,0 +1,5 @@
+{
+  "name": "Copy of AI-Powered Interactive Manuals",
+  "description": "A web-based platform that converts large OEM PDF service manuals into a fully interactive, AI-powered, searchable documentation system. This application provides a rich user interface for navigating technical manuals and leverages AI for advanced search, procedure generation, and troubleshooting.",
+  "requestFramePermissions": []
+}
