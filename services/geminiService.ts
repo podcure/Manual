@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from '@google/genai';
-import type { ProcedureDetails } from '../types';
+import type { ProcedureDetails, TocItem } from '../types';
 
 // IMPORTANT: Do not expose this key on the client-side in a real production app.
 // This is for demonstration purposes only. In a real app, this logic would
@@ -82,21 +82,40 @@ export async function generateProcedureChecklist(htmlContent: string): Promise<P
     }
 }
 
-export async function getTroubleshootingAdvice(context: string, symptom: string): Promise<string> {
+export async function getTroubleshootingAdvice(context: string, symptom: string, toc: TocItem[]): Promise<string> {
     if(!ai) throw new Error("AI client is not initialized. API key may be missing.");
+
+    const formatToc = (items: TocItem[], level = 0): string => {
+        let tocString = '';
+        for (const item of items) {
+            tocString += `${'  '.repeat(level)}- Section "${item.title}" (pageId: ${item.pageId})\n`;
+            if (item.children) {
+                tocString += formatToc(item.children, level + 1);
+            }
+        }
+        return tocString;
+    };
+
+    const tocContext = formatToc(toc);
 
     const prompt = `
         You are an AI-powered master technician and troubleshooting assistant. Your goal is to help a user diagnose a problem with their heavy machinery.
-        Use the provided manual context to formulate your response. Be clear, concise, and provide actionable steps.
-        Format your response using simple markdown. Use headings for sections, bullet points for lists, and bold text for emphasis.
+        Use the provided manual context and the table of contents to formulate your response. Be clear, concise, and provide actionable steps.
+        
+        When you reference a specific section from the manual, you MUST provide a link to it. 
+        Format the link EXACTLY like this markdown: [Click here to view section](page-id:THE_RELEVANT_PAGE_ID). 
+        For example, if you are referencing the fuel filter replacement procedure which has a pageId of 'page-fuel-filter', you would write: "Check the fuel filter. [Click here to view section](page-id:page-fuel-filter)".
 
-        **Manual Context:**
+        **Manual Table of Contents:**
+        ${tocContext}
+
+        **Current Page Context:**
         ${context}
 
         **User's Described Symptom:**
         "${symptom}"
 
-        Based on this information, provide a diagnostic plan.
+        Based on this information, provide a diagnostic plan. Remember to include links to relevant manual sections using the specified format.
     `;
     
     try {

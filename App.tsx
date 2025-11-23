@@ -1,22 +1,25 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { allModels as initialModels, allManuals as initialManuals } from './data/mockData';
+import { allModels as initialModels, allManuals as initialManuals, mockBranding } from './data/mockData';
 import { ManualViewer } from './components/ManualViewer';
-import type { Model, Manual } from './types';
+import type { Model, Manual, BrandingConfig } from './types';
 import { DashboardLayout } from './components/DashboardLayout';
 import { HomePage } from './components/HomePage';
 import { MasterPage } from './components/MasterPage';
 import { UploadPage } from './components/UploadPage';
 import { ManualSelectionPage } from './components/ManualSelectionPage';
 import { AnalyticsPage } from './components/AnalyticsPage';
+import { SettingsPage } from './components/SettingsPage';
 import { analyticsService } from './services/analyticsService';
 
 
-export type AppView = 'home' | 'master' | 'upload' | 'manuals' | 'viewer' | 'analytics';
+export type AppView = 'home' | 'master' | 'upload' | 'manuals' | 'viewer' | 'analytics' | 'settings';
 
 export default function App() {
     const [view, setView] = useState<AppView>('home');
     const [allModels, setAllModels] = useState<Model[]>(initialModels);
     const [allManuals, setAllManuals] = useState<Manual[]>(initialManuals);
+    const [branding, setBranding] = useState<BrandingConfig>(mockBranding);
     
     const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
     const [selectedManualId, setSelectedManualId] = useState<string | null>(null);
@@ -58,13 +61,22 @@ export default function App() {
     };
 
 
-    const handleAddModel = (newModelData: Omit<Model, 'manuals' | 'id'>) => {
+    const handleAddModel = (newModelData: Omit<Model, 'manuals'>) => {
          const newModel: Model = {
             ...newModelData,
-            id: `model-${Date.now()}`,
             manuals: [],
         };
         setAllModels(prevModels => [newModel, ...prevModels]);
+    };
+
+    const handleUpdateModel = (updatedModelData: Omit<Model, 'manuals'>) => {
+        setAllModels(prevModels => 
+            prevModels.map(model => 
+                model.id === updatedModelData.id 
+                    ? { ...model, ...updatedModelData } // Preserve existing manuals array
+                    : model
+            )
+        );
     };
 
     const handleAddManual = (newManualData: Omit<Manual, 'id' | 'toc'>) => {
@@ -117,7 +129,7 @@ export default function App() {
                 }
                 break;
             case 'master':
-                pageComponent = <MasterPage allModels={allModels} onAddModel={handleAddModel} />;
+                pageComponent = <MasterPage allModels={allModels} onAddModel={handleAddModel} onUpdateModel={handleUpdateModel} />;
                 break;
             case 'upload':
                 pageComponent = <UploadPage allModels={allModels} onAddManual={handleAddManual} />;
@@ -125,17 +137,22 @@ export default function App() {
             case 'analytics':
                 pageComponent = <AnalyticsPage />;
                 break;
+            case 'settings':
+                pageComponent = <SettingsPage branding={branding} onUpdateBranding={setBranding} />;
+                break;
             case 'home':
             default:
                 pageComponent = <HomePage models={modelsWithManuals} onSelectModel={handleSelectModel} />;
         }
         
         return (
-            <DashboardLayout currentView={view} onNavigate={handleNavigation}>
+            <DashboardLayout currentView={view} onNavigate={handleNavigation} branding={branding}>
                 {pageComponent}
             </DashboardLayout>
         );
     };
 
-    return <div className="antialiased">{renderContent()}</div>;
+    return <div className="antialiased" style={{ 
+        '--color-brand-highlight': branding.accentColor 
+    } as React.CSSProperties}>{renderContent()}</div>;
 }

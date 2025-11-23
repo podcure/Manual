@@ -1,31 +1,49 @@
 import React, { useState } from 'react';
 import type { Model } from '../types';
-import { CreateMachineModal } from './CreateMachineModal';
+import { MachineModal } from './CreateMachineModal';
 import { PlusIcon, EditIcon, TrashIcon } from './icons/AdminIcons';
 
 interface MasterPageProps {
     allModels: Omit<Model, 'manuals'>[];
-    onAddModel: (newModelData: Omit<Model, 'manuals' | 'id'>) => void;
+    onAddModel: (newModelData: Omit<Model, 'manuals'>) => void;
+    onUpdateModel: (modelData: Omit<Model, 'manuals'>) => void;
 }
 
-export const MasterPage: React.FC<MasterPageProps> = ({ allModels, onAddModel }) => {
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+export const MasterPage: React.FC<MasterPageProps> = ({ allModels, onAddModel, onUpdateModel }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingModel, setEditingModel] = useState<Omit<Model, 'manuals'> | null>(null);
 
-    const handleAddModel = (newModel: Omit<Model, 'manuals' | 'id'>) => {
-        onAddModel(newModel);
-        setIsCreateModalOpen(false);
+    const handleOpenCreateModal = () => {
+        setEditingModel(null);
+        setIsModalOpen(true);
+    };
+    
+    const handleOpenEditModal = (model: Omit<Model, 'manuals'>) => {
+        setEditingModel(model);
+        setIsModalOpen(true);
+    };
+
+    const handleModalSubmit = (machineData: Omit<Model, 'manuals'>) => {
+        if (editingModel) {
+            onUpdateModel(machineData);
+        } else {
+            onAddModel(machineData);
+        }
+        setIsModalOpen(false);
     };
 
     const handleAction = (action: string, id: string) => {
-        alert(`${action} on item ${id}. \nThis would open a form/modal or confirmation dialog.`);
+        alert(`${action} on item ${id}. This action is not yet implemented.`);
     }
 
     return (
         <>
-            <CreateMachineModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
-                onAddMachine={handleAddModel}
+            <MachineModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                onSubmit={handleModalSubmit}
+                mode={editingModel ? 'edit' : 'create'}
+                initialData={editingModel}
             />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="flex-shrink-0 bg-brand-secondary/50 backdrop-blur-sm border-b border-brand-accent/50 p-4 flex justify-between items-center">
@@ -33,7 +51,7 @@ export const MasterPage: React.FC<MasterPageProps> = ({ allModels, onAddModel })
                         <h2 className="text-2xl font-bold text-brand-text">Master - Machines / Models</h2>
                         <p className="text-md text-brand-light">Manage machine definitions.</p>
                     </div>
-                     <button onClick={() => setIsCreateModalOpen(true)} className="inline-flex items-center px-4 py-2 rounded-md bg-brand-accent hover:bg-brand-light hover:text-brand-primary text-brand-text font-semibold">
+                     <button onClick={handleOpenCreateModal} className="inline-flex items-center px-4 py-2 rounded-md bg-brand-accent hover:bg-brand-light hover:text-brand-primary text-brand-text font-semibold">
                         <PlusIcon className="mr-2" /> Add New Machine
                     </button>
                 </header>
@@ -58,7 +76,7 @@ export const MasterPage: React.FC<MasterPageProps> = ({ allModels, onAddModel })
                                         <td className="p-4 text-brand-light">{model.category}</td>
                                         <td className="p-4 text-right">
                                              <div className="flex items-center justify-end space-x-3">
-                                                 <button onClick={() => handleAction('Edit Machine', model.id)} className="text-brand-light hover:text-brand-highlight"><EditIcon /></button>
+                                                 <button onClick={() => handleOpenEditModal(model)} className="text-brand-light hover:text-brand-highlight"><EditIcon /></button>
                                                  <button onClick={() => handleAction('Delete Machine', model.id)} className="text-brand-light hover:text-red-500"><TrashIcon /></button>
                                              </div>
                                         </td>

@@ -8,9 +8,10 @@ interface AiAssistantProps {
     contextPage: PageContent | null;
     manual: Manual | null;
     troubleshoot: (context: string, symptom: string) => Promise<string>;
+    onNavigate: (pageId: string) => void;
 }
 
-export const AiAssistant: React.FC<AiAssistantProps> = ({ isOpen, contextPage, manual, troubleshoot }) => {
+export const AiAssistant: React.FC<AiAssistantProps> = ({ isOpen, contextPage, manual, troubleshoot, onNavigate }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -43,6 +44,51 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ isOpen, contextPage, m
     
     if (!isOpen) return null;
 
+    const renderMessageContent = (message: ChatMessage) => {
+        if (message.sender === 'user') {
+          return <p className="text-sm">{message.text}</p>;
+        }
+    
+        const linkRegex = /\[(.*?)\]\(page-id:(.*?)\)/g;
+        const parts = [];
+        let lastIndex = 0;
+        let match;
+    
+        while ((match = linkRegex.exec(message.text)) !== null) {
+          if (match.index > lastIndex) {
+            parts.push(message.text.substring(lastIndex, match.index));
+          }
+          const linkText = match[1];
+          const pageId = match[2];
+          parts.push(
+            <button
+              key={match.index}
+              onClick={() => onNavigate(pageId)}
+              className="inline font-semibold text-brand-highlight hover:underline focus:outline-none"
+            >
+              {linkText}
+            </button>
+          );
+          lastIndex = linkRegex.lastIndex;
+        }
+    
+        if (lastIndex < message.text.length) {
+          parts.push(message.text.substring(lastIndex));
+        }
+    
+        return (
+          <div className="text-sm prose prose-invert max-w-none prose-p:my-2">
+            {parts.map((part, i) =>
+              typeof part === 'string' ? (
+                <span key={i} dangerouslySetInnerHTML={{ __html: part.replace(/\n/g, '<br />') }} />
+              ) : (
+                part
+              )
+            )}
+          </div>
+        );
+      };
+
     return (
         <aside className="w-96 bg-brand-secondary border-l border-brand-accent/50 flex flex-col flex-shrink-0">
             <div className="p-4 border-b border-brand-accent/50">
@@ -61,7 +107,7 @@ export const AiAssistant: React.FC<AiAssistantProps> = ({ isOpen, contextPage, m
                 {messages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-xs lg:max-w-sm px-4 py-2 rounded-lg ${msg.sender === 'user' ? 'bg-brand-highlight text-brand-primary' : 'bg-brand-accent text-brand-text'}`}>
-                            <p className="text-sm" dangerouslySetInnerHTML={{__html: msg.text.replace(/\n/g, '<br />')}}></p>
+                            {renderMessageContent(msg)}
                         </div>
                     </div>
                 ))}

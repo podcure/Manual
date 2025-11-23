@@ -92,7 +92,6 @@ export const CreateManualModal: React.FC<CreateManualModalProps> = ({ isOpen, on
                             id="map-machines" 
                             multiple 
                             value={mappedMachineIds}
-                            // Fix: Explicitly type `option` as HTMLOptionElement to resolve TypeScript inference issue.
                             onChange={e => setMappedMachineIds(Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value))}
                             className="w-full h-32 bg-brand-primary border border-brand-accent rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-brand-highlight text-brand-text"
                         >

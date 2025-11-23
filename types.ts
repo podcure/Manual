@@ -1,3 +1,4 @@
+
 export interface Model {
   id: string;
   name: string;
@@ -70,6 +71,8 @@ export interface SearchResult {
   pageId: string;
   tocItemTitle: string;
   snippet: string;
+  manualId: string;
+  manualTitle: string;
 }
 
 // Analytics Event Types
@@ -127,4 +130,69 @@ export interface AnalyticsEvent {
         browser: string;
     };
     payload: EventPayload<AnalyticsEventName>;
+}
+
+// --- Admin / Settings Types ---
+
+export type UserRole = 'Super Admin' | 'Billing Admin' | 'Technician' | 'Read-only';
+
+export interface User {
+    id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+    status: 'Active' | 'Invited' | 'Deactivated';
+    lastLogin: string;
+    avatar?: string;
+}
+
+export interface PlanFeature {
+    name: string;
+    included: boolean;
+    limit?: string | number;
+    tooltip?: string;
+}
+
+export interface SubscriptionPlan {
+    id: string;
+    name: string;
+    slug: 'basic' | 'standard' | 'enterprise';
+    priceMonthly: number;
+    priceYearly: number;
+    description: string;
+    features: PlanFeature[];
+    machineLimit: number;
+    userLimit: number;
+    isPopular?: boolean;
+}
+
+export interface Invoice {
+    id: string;
+    number: string;
+    date: string;
+    amount: number;
+    status: 'Paid' | 'Overdue' | 'Pending';
+    pdfUrl: string;
+    items: string[];
+}
+
+export interface AuditLogEntry {
+    id: string;
+    action: string;
+    user: string;
+    userRole: string;
+    target: string;
+    timestamp: string;
+    ipAddress: string;
+    status: 'Success' | 'Failed';
+}
+
+export interface BrandingConfig {
+    productName: string;
+    primaryColor: string;
+    accentColor: string;
+    logoUrl: string;
+    faviconUrl?: string;
+    loginBackgroundUrl?: string;
+    customDomain?: string;
 }

@@ -6,7 +6,7 @@ import { AiAssistant } from './AiAssistant';
 import { ManualSearchResults } from './ManualSearchResults';
 import { Breadcrumb } from './Breadcrumb';
 import { pageContents } from '../data/mockData';
-import type { Model, Manual, TocItem, PageContent, SearchScope } from '../types';
+import type { Model, Manual, TocItem, PageContent, SearchScope, SearchResult } from '../types';
 import { generateProcedureChecklist, getTroubleshootingAdvice } from '../services/geminiService';
 import { MenuIcon, CloseIcon } from './icons/MenuIcon';
 import { analyticsService } from '../services/analyticsService';
@@ -18,6 +18,17 @@ interface ManualViewerProps {
     onNavigateHome: () => void;
     onNavigateToModel: () => void;
 }
+
+const findTocItemByPageId = (pageId: string, toc: TocItem[]): TocItem | null => {
+    for (const item of toc) {
+        if (item.pageId === pageId) return item;
+        if (item.children) {
+            const found = findTocItemByPageId(pageId, item.children);
+            if (found) return found;
+        }
+    }
+    return null;
+};
 
 export const ManualViewer: React.FC<ManualViewerProps> = ({ model, initialManual, onGoBack, onNavigateHome, onNavigateToModel }) => {
     const [selectedManual, setSelectedManual] = useState<Manual>(initialManual);
@@ -72,18 +83,7 @@ export const ManualViewer: React.FC<ManualViewerProps> = ({ model, initialManual
     }, [model.id, selectedManual.id]);
     
     const handleNavigate = useCallback((pageId: string) => {
-        const findTocItem = (items: TocItem[]): TocItem | null => {
-            for (const item of items) {
-                if (item.pageId === pageId) return item;
-                if (item.children) {
-                    const found = findTocItem(item.children);
-                    if (found) return found;
-                }
-            }
-            return null;
-        };
-
-        const tocItem = findTocItem(selectedManual.toc);
+        const tocItem = findTocItemByPageId(pageId, selectedManual.toc);
         if (tocItem) {
             handleTocItemSelect(tocItem);
         } else {
@@ -91,6 +91,29 @@ export const ManualViewer: React.FC<ManualViewerProps> = ({ model, initialManual
         }
 
     }, [selectedManual, handleTocItemSelect]);
+
+    const handleSearchResultClick = (result: SearchResult) => {
+        const targetManual = model.manuals?.find(m => m.id === result.manualId);
+        
+        if (targetManual) {
+            const targetTocItem = findTocItemByPageId(result.pageId, targetManual.toc);
+            
+            if (targetTocItem) {
+                 if (selectedManual.id !== targetManual.id) {
+                    setSelectedManual(targetManual);
+                }
+                handleTocItemSelect(targetTocItem);
+                setSearchQuery('');
+                setSearchScope('page');
+            }
+        }
+    };
+
+
+    const handleTroubleshoot = useCallback(async (context: string, symptom: string): Promise<string> => {
+        if (!selectedManual) return "Error: No manual selected to provide context from.";
+        return getTroubleshootingAdvice(context, symptom, selectedManual.toc);
+    }, [selectedManual]);
 
 
     return (
@@ -131,15 +154,12 @@ export const ManualViewer: React.FC<ManualViewerProps> = ({ model, initialManual
                         onNavigateToModel={onNavigateToModel}
                     />
                     <div className="flex-1 flex overflow-hidden">
-                        {(searchScope === 'manual' || (isSearchingAllManuals && searchScope !== 'index')) && searchQuery ? (
+                        {(searchScope === 'manual' || isSearchingAllManuals) && searchQuery ? (
                             <ManualSearchResults 
-                                manual={selectedManual}
+                                manuals={isSearchingAllManuals ? (model.manuals || []) : [selectedManual]}
                                 allPages={pageContents}
                                 query={searchQuery}
-                                onNavigate={(pageId) => {
-                                    handleNavigate(pageId);
-                                    setSearchScope('page');
-                                }}
+                                onResultClick={handleSearchResultClick}
                             />
                         ) : (
                             <ContentViewer 
@@ -156,7 +176,8 @@ export const ManualViewer: React.FC<ManualViewerProps> = ({ model, initialManual
                             isOpen={isAssistantOpen} 
                             contextPage={selectedPage} 
                             manual={selectedManual}
-                            troubleshoot={getTroubleshootingAdvice}
+                            troubleshoot={handleTroubleshoot}
+                            onNavigate={handleNavigate}
                         />
                     </div>
                 </main>

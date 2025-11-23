@@ -4,10 +4,10 @@ import { ListIcon } from './icons/ListIcon';
 import { analyticsService } from '../services/analyticsService';
 
 interface ManualSearchResultsProps {
-    manual: Manual | null;
+    manuals: Manual[];
     allPages: Record<string, PageContent>;
     query: string;
-    onNavigate: (pageId: string) => void;
+    onResultClick: (result: SearchResult) => void;
 }
 
 // Helper to get a flat list of all pageIds and their corresponding TOC titles from a nested TOC structure
@@ -47,29 +47,36 @@ const createSnippet = (text: string, query: string, snippetLength = 150): string
 };
 
 
-export const ManualSearchResults: React.FC<ManualSearchResultsProps> = ({ manual, allPages, query, onNavigate }) => {
+export const ManualSearchResults: React.FC<ManualSearchResultsProps> = ({ manuals, allPages, query, onResultClick }) => {
     const searchResults = useMemo<SearchResult[]>(() => {
-        if (!manual || !query) return [];
+        if (!manuals || manuals.length === 0 || !query) return [];
 
-        const pageIdToTitle = getPageIdToTitleMap(manual.toc);
-        const results: SearchResult[] = [];
+        const allResults: SearchResult[] = [];
         const tempDiv = document.createElement('div');
 
-        for (const [pageId, tocItemTitle] of pageIdToTitle.entries()) {
-            const page = allPages[pageId];
-            if (page) {
-                // Use DOM parsing to get clean text content, avoiding searching inside HTML tags
-                tempDiv.innerHTML = page.html;
-                const pageText = tempDiv.textContent || "";
-                
-                if (pageText.toLowerCase().includes(query.toLowerCase())) {
-                    const snippet = createSnippet(pageText, query);
-                    results.push({ pageId, tocItemTitle, snippet });
+        for (const manual of manuals) {
+            const pageIdToTitle = getPageIdToTitleMap(manual.toc);
+            for (const [pageId, tocItemTitle] of pageIdToTitle.entries()) {
+                const page = allPages[pageId];
+                if (page) {
+                    tempDiv.innerHTML = page.html;
+                    const pageText = tempDiv.textContent || "";
+                    
+                    if (pageText.toLowerCase().includes(query.toLowerCase())) {
+                        const snippet = createSnippet(pageText, query);
+                        allResults.push({ 
+                            pageId, 
+                            tocItemTitle, 
+                            snippet,
+                            manualId: manual.id,
+                            manualTitle: manual.title,
+                        });
+                    }
                 }
             }
         }
-        return results;
-    }, [manual, allPages, query]);
+        return allResults;
+    }, [manuals, allPages, query]);
 
     const handleResultClick = (result: SearchResult) => {
         analyticsService.track('search_result_click', {
@@ -77,7 +84,7 @@ export const ManualSearchResults: React.FC<ManualSearchResultsProps> = ({ manual
             clicked_page_id: result.pageId,
             clicked_toc_title: result.tocItemTitle,
         });
-        onNavigate(result.pageId);
+        onResultClick(result);
     };
 
     return (
@@ -88,8 +95,8 @@ export const ManualSearchResults: React.FC<ManualSearchResultsProps> = ({ manual
                         <ListIcon className="h-6 w-6 mr-3 text-brand-light" />
                         Search Results for "{query}"
                     </h1>
-                    <p className="text-brand-light mt-1">
-                        Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} in "{manual?.title}".
+                     <p className="text-brand-light mt-1">
+                        Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} {manuals.length > 1 ? 'across all manuals' : `in "${manuals[0]?.title}"`}.
                     </p>
                 </div>
                 
@@ -101,7 +108,12 @@ export const ManualSearchResults: React.FC<ManualSearchResultsProps> = ({ manual
                                 className="bg-brand-secondary p-4 rounded-lg border border-brand-accent/50 cursor-pointer hover:border-brand-highlight transition-colors"
                                 onClick={() => handleResultClick(result)}
                             >
-                                <h2 className="text-lg font-semibold text-brand-highlight">{result.tocItemTitle}</h2>
+                                <div className="flex justify-between items-start">
+                                    <h2 className="text-lg font-semibold text-brand-highlight">{result.tocItemTitle}</h2>
+                                     {manuals.length > 1 && (
+                                        <span className="text-xs font-medium text-brand-light bg-brand-accent/50 px-2 py-1 rounded-md whitespace-nowrap">{result.manualTitle}</span>
+                                    )}
+                                </div>
                                 <p className="text-brand-light text-sm mt-2" dangerouslySetInnerHTML={{ __html: result.snippet }}></p>
                             </div>
                         ))}
